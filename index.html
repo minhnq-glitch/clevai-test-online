@@ -15,7 +15,7 @@
   .tabs button{flex:1;border:0;background:none;padding:13px 0;font-size:15px;font-weight:600;color:#7a828f;border-bottom:3px solid transparent}
   .tabs button.active{color:#ff7a00;border-bottom-color:#ff7a00}
   .pane{display:none}.pane.show{display:block}
-  .deview{height:calc(100vh - 96px);overflow:auto;-webkit-overflow-scrolling:touch;background:#5a6072;padding:12px}
+  .deview{background:#5a6072;padding:12px 12px 96px}
   .deview .paper{max-width:680px;margin:0 auto 12px;background:#fff;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
   .deview canvas{display:block;width:100%;border-radius:6px;margin:0 auto 12px;box-shadow:0 4px 14px rgba(0,0,0,.25);background:#fff}
   .nopdf{padding:30px 18px;text-align:center;color:#fff}
@@ -120,6 +120,7 @@ function buildUI(){
      '<button class="btn btn-lib" onclick="lib.click()">🖼️ Chọn ảnh từ thư viện</button>'+
      '<input id="cam" type="file" accept="image/*" capture="environment" multiple onchange="addFiles(this)">'+
      '<input id="lib" type="file" accept="image/*" multiple onchange="addFiles(this)">'+
+     '<div id="gridlabel" style="font-size:13px;color:#5b636f;margin:8px 0 0"></div>'+
      '<div id="grid" class="grid"></div>'+
    '</div></div>'+
    '<div class="bar"><div class="wrap"><button id="btnSubmit" class="btn btn-submit" onclick="submitAll()" disabled>Nộp bài (0 ảnh)</button></div></div>'+
@@ -160,19 +161,41 @@ function renderDe(){
 }
 
 /* ====== ẢNH ====== */
-function compress(file){return new Promise(function(res){
-  var img=new Image(),url=URL.createObjectURL(file);
-  img.onload=function(){var max=1600,w=img.width,h=img.height;
-    if(w>h&&w>max){h=Math.round(h*max/w);w=max}else if(h>=w&&h>max){w=Math.round(w*max/h);h=max}
-    var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
-    URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',0.7));};
-  img.onerror=function(){URL.revokeObjectURL(url);res(null)};img.src=url;});}
+function toJpeg(src){
+  var max=1600,w=src.width,h=src.height;
+  if(w>h&&w>max){h=Math.round(h*max/w);w=max}else if(h>=w&&h>max){w=Math.round(w*max/h);h=max}
+  var c=document.createElement('canvas');c.width=w;c.height=h;
+  c.getContext('2d').drawImage(src,0,0,w,h);
+  return c.toDataURL('image/jpeg',0.7);
+}
+function readRaw(file){return new Promise(function(res){var fr=new FileReader();
+  fr.onload=function(){res(fr.result)};fr.onerror=function(){res(null)};fr.readAsDataURL(file);});}
+
+async function compress(file){
+  // 1) createImageBitmap đọc được cả HEIC/iPhone
+  try{ if(window.createImageBitmap){ var bmp=await createImageBitmap(file);
+    var d=toJpeg(bmp); if(bmp.close)bmp.close(); if(d)return d; } }catch(e){}
+  // 2) fallback <img>
+  var viaImg=await new Promise(function(res){var img=new Image(),url=URL.createObjectURL(file);
+    img.onload=function(){try{var d=toJpeg(img);URL.revokeObjectURL(url);res(d)}catch(e){URL.revokeObjectURL(url);res(null)}};
+    img.onerror=function(){URL.revokeObjectURL(url);res(null)};img.src=url;});
+  if(viaImg)return viaImg;
+  // 3) cuối cùng: gửi nguyên ảnh để không mất bài
+  return await readRaw(file);
+}
 
 async function addFiles(input){
   var files=[].slice.call(input.files||[]);input.value='';
-  for(var i=0;i<files.length;i++){if(!/^image\//.test(files[i].type))continue;
-    var d=await compress(files[i]);if(d)images.push(d);}
-  await saveCache();renderGrid();
+  if(!files.length)return;
+  var ov=$('overlay'),ovt=$('ovtxt');ovt.textContent='Đang xử lý ảnh…';ov.classList.add('on');
+  var added=0,fail=0;
+  for(var i=0;i<files.length;i++){
+    if(!/^image\//.test(files[i].type)&&!/\.(heic|heif|jpe?g|png)$/i.test(files[i].name)){fail++;continue;}
+    var d=await compress(files[i]);if(d){images.push(d);added++}else{fail++;}
+  }
+  await saveCache();renderGrid();ov.classList.remove('on');
+  if(added)toast('✓ Đã thêm '+added+' ảnh'+(fail?' ('+fail+' lỗi)':'')+'. Nhớ bấm Nộp bài.');
+  else toast('⚠️ Không đọc được ảnh, thử chụp/chọn lại.');
 }
 async function removeAt(i){images.splice(i,1);await saveCache();renderGrid();}
 function renderGrid(){
@@ -180,6 +203,7 @@ function renderGrid(){
   images.forEach(function(d,i){var x=document.createElement('div');x.className='thumb';
     x.innerHTML='<img src="'+d+'"><button class="x" onclick="removeAt('+i+')">✕</button><div class="n">Ảnh '+(i+1)+'</div>';
     g.appendChild(x);});
+  var lbl=$('gridlabel');if(lbl)lbl.textContent=images.length?('Ảnh đã chọn (chưa nộp): '+images.length):'';
   var b=$('btnSubmit');b.textContent='Nộp bài ('+images.length+' ảnh)';b.disabled=images.length===0;
 }
 
