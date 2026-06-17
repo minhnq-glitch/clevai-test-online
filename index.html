@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<title>Làm bài test - Clevai</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1f2430;background:#f4f6fa}
+  .wrap{max-width:760px;margin:0 auto}
+  .top{background:#ff7a00;color:#fff;padding:12px 14px;position:sticky;top:0;z-index:5}
+  .top b{font-size:16px}.top .hv{font-size:12.5px;opacity:.95;margin-top:2px}
+  .tabs{display:flex;background:#fff;position:sticky;top:52px;z-index:5;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .tabs button{flex:1;border:0;background:none;padding:13px 0;font-size:15px;font-weight:600;color:#7a828f;border-bottom:3px solid transparent}
+  .tabs button.active{color:#ff7a00;border-bottom-color:#ff7a00}
+  .pane{display:none}.pane.show{display:block}
+  .deview{height:calc(100vh - 96px);overflow:auto;-webkit-overflow-scrolling:touch;background:#5a6072;padding:12px}
+  .deview .paper{max-width:680px;margin:0 auto 12px;background:#fff;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+  .deview canvas{display:block;width:100%;border-radius:6px;margin:0 auto 12px;box-shadow:0 4px 14px rgba(0,0,0,.25);background:#fff}
+  .nopdf{padding:30px 18px;text-align:center;color:#fff}
+  .nop{padding:16px 14px 96px}
+  .field{margin-bottom:12px}.field label{display:block;font-size:13px;font-weight:600;color:#444;margin-bottom:5px}
+  .field input{width:100%;padding:12px;border:1.5px solid #d6dbe4;border-radius:10px;font-size:16px}
+  .field input:focus{border-color:#ff7a00;outline:none}
+  .hint{font-size:13px;color:#5b636f;line-height:1.5;margin:4px 0 14px}
+  .btn{display:block;width:100%;padding:14px;border-radius:12px;border:0;font-size:16px;font-weight:700;margin-bottom:10px}
+  .btn-cam{background:#ff7a00;color:#fff}.btn-lib{background:#fff;color:#ff7a00;border:2px solid #ff7a00}
+  .btn[disabled]{opacity:.5}
+  input[type=file]{display:none}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+  .thumb{position:relative;border-radius:10px;overflow:hidden;background:#e7eaf0;aspect-ratio:3/4}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .thumb .x{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:0;font-size:16px}
+  .thumb .n{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:3px 6px}
+  .bar{position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 14px;box-shadow:0 -2px 10px rgba(0,0,0,.08)}
+  .bar .wrap{padding:0}.btn-submit{background:#14a44d;color:#fff;margin:0}
+  .notice{padding:60px 24px;text-align:center}.notice .ico{font-size:54px}
+  .notice h2{margin:14px 0 8px;font-size:20px}.notice p{color:#5b636f;font-size:15px;line-height:1.6;margin:4px 0}
+  .restore{background:#fff4e6;border:1px solid #ffd9b3;color:#a35200;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px;display:none}
+  .restore.on{display:block}
+  .toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#1f2430;color:#fff;padding:10px 16px;border-radius:24px;font-size:14px;opacity:0;transition:opacity .25s;z-index:50;max-width:90%;text-align:center}
+  .toast.on{opacity:1}
+  .overlay{position:fixed;inset:0;background:rgba(255,255,255,.92);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:100}
+  .overlay.on{display:flex}
+  .spin{width:40px;height:40px;border:4px solid #ffd9b3;border-top-color:#ff7a00;border-radius:50%;animation:r 1s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+  .overlay p{margin-top:14px;color:#5b636f}
+  /* đề demo */
+  .dpaper{padding:16px;font-size:14px;line-height:1.7;color:#111}
+  .dtitle{text-align:center;font-weight:700;color:#1b3a8c;line-height:1.4}
+  .dsub{text-align:center;font-style:italic;font-size:12px;color:#555;margin:4px 0 12px}
+  .dq{font-weight:700;margin:12px 0 4px}
+  .fr{display:inline-block;vertical-align:middle;text-align:center;margin:0 3px;font-size:12.5px}
+  .fr .n{display:block;padding:0 5px}.fr .d{display:block;padding:0 5px;border-top:1.4px solid #111}
+</style>
+</head>
+<body>
+<div id="app"><div class="notice"><div class="spin" style="margin:0 auto"></div><p style="color:#7a828f;margin-top:16px">Đang tải…</p></div></div>
+<div id="toast" class="toast"></div>
+<div id="overlay" class="overlay"><div class="spin"></div><p id="ovtxt">Đang gửi…</p></div>
+
+<script>
+/* ====== CẤU HÌNH ====== */
+var API = 'https://script.google.com/macros/s/AKfycbwZPAad0Z3eFAg5JdoGVNsQ8NJ4PmwCLxHQMguE9ucEU2m13pBNBuVbIQ2Cmw5ugZ3C/exec';
+
+var GRADE = new URLSearchParams(location.search).get('grade') || '';
+var images = [], META = null;
+var DB, STORE='imgs', KEY='sess-'+GRADE;
+
+/* ====== IndexedDB chống mất ảnh khi F5 ====== */
+function openDB(){return new Promise(function(res){var rq=indexedDB.open('hv-test',1);
+  rq.onupgradeneeded=function(){rq.result.createObjectStore(STORE)};
+  rq.onsuccess=function(){DB=rq.result;res()};rq.onerror=function(){res()};});}
+function saveCache(){return new Promise(function(res){if(!DB)return res();
+  var d={images:images,ten:val('ten'),sdt:val('sdt')};
+  var tx=DB.transaction(STORE,'readwrite');tx.objectStore(STORE).put(d,KEY);tx.oncomplete=res;tx.onerror=res;});}
+function loadCache(){return new Promise(function(res){if(!DB)return res(null);
+  var rq=DB.transaction(STORE,'readonly').objectStore(STORE).get(KEY);
+  rq.onsuccess=function(){res(rq.result||null)};rq.onerror=function(){res(null)};});}
+function clearCache(){return new Promise(function(res){if(!DB)return res();
+  var tx=DB.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(KEY);tx.oncomplete=res;tx.onerror=res;});}
+
+function $(id){return document.getElementById(id)}
+function val(id){var e=$(id);return e?e.value.trim():''}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function toast(m){var t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('on')},2800)}
+
+/* ====== KHỞI ĐỘNG ====== */
+(async function(){
+  if(!GRADE){return notice('🔒','Link không hợp lệ','Link này không gắn với khối/đề nào.<br>Vui lòng dùng đúng link giáo viên đã gửi.')}
+  try{
+    var r=await fetch(API+'?api=meta&grade='+encodeURIComponent(GRADE));
+    META=await r.json();
+  }catch(e){return notice('⚠️','Không tải được đề','Kiểm tra kết nối mạng rồi thử lại.')}
+  if(!META||!META.found){
+    if(META&&META.gateState==='notfound')return notice('🔒','Link không hợp lệ','Không tìm thấy khối này.<br>Vui lòng dùng đúng link giáo viên đã gửi.');
+    return notice('🔒','Link không hợp lệ','Link này không gắn với khối/đề nào.');
+  }
+  if(META.gateState==='early')return notice('⏰','Chưa tới giờ làm bài','<b>'+esc(META.title)+'</b><br>Bài test mở lúc <b>'+esc(META.startStr)+'</b>.<br>Vui lòng quay lại đúng giờ nhé.');
+  if(META.gateState==='late') return notice('⛔','Đã hết hạn nộp bài','Thời gian làm bài <b>'+esc(META.title)+'</b> đã kết thúc lúc <b>'+esc(META.endStr)+'</b>.');
+  buildUI();
+})();
+
+function notice(ico,h,p){$('app').innerHTML='<div class="wrap"><div class="notice"><div class="ico">'+ico+'</div><h2>'+h+'</h2><p>'+p+'</p></div></div>';}
+
+function buildUI(){
+  $('app').innerHTML=
+   '<div class="wrap">'+
+   '<div class="top"><b>'+esc(META.title||'ĐÁNH GIÁ NĂNG LỰC')+'</b><div class="hv">Khối '+esc(GRADE)+(META.endStr?' · Hạn nộp: '+esc(META.endStr):'')+'</div></div>'+
+   '<div class="tabs"><button id="tabDe" class="active" onclick="showTab(\'de\')">📄 Xem đề</button>'+
+   '<button id="tabNop" onclick="showTab(\'nop\')">📤 Nộp bài</button></div>'+
+   '<div id="paneDe" class="pane show"><div class="deview" id="deview"></div></div>'+
+   '<div id="paneNop" class="pane"><div class="nop">'+
+     '<div id="restore" class="restore"></div>'+
+     '<div class="field"><label>Họ và tên *</label><input id="ten" placeholder="VD: Nguyễn Văn A" oninput="saveCache()"></div>'+
+     '<div class="field"><label>Số điện thoại *</label><input id="sdt" type="tel" inputmode="numeric" placeholder="VD: 0987654321" oninput="saveCache()"></div>'+
+     '<p class="hint">Chụp/chọn ảnh bài làm trên giấy (mỗi câu 1 ảnh cũng được). Kiểm tra ảnh rõ chữ rồi bấm <b>Nộp bài</b>.</p>'+
+     '<button class="btn btn-cam" onclick="cam.click()">📷 Chụp ảnh bài làm</button>'+
+     '<button class="btn btn-lib" onclick="lib.click()">🖼️ Chọn ảnh từ thư viện</button>'+
+     '<input id="cam" type="file" accept="image/*" capture="environment" multiple onchange="addFiles(this)">'+
+     '<input id="lib" type="file" accept="image/*" multiple onchange="addFiles(this)">'+
+     '<div id="grid" class="grid"></div>'+
+   '</div></div>'+
+   '<div class="bar"><div class="wrap"><button id="btnSubmit" class="btn btn-submit" onclick="submitAll()" disabled>Nộp bài (0 ảnh)</button></div></div>'+
+   '</div>';
+  renderDe();
+  restoreCache();
+}
+
+function showTab(w){
+  $('paneDe').classList.toggle('show',w==='de');$('paneNop').classList.toggle('show',w==='nop');
+  $('tabDe').classList.toggle('active',w==='de');$('tabNop').classList.toggle('active',w==='nop');
+}
+
+/* ====== HIỂN THỊ ĐỀ ====== */
+function renderDe(){
+  var box=$('deview');
+  if(META.demo){box.innerHTML='<div class="paper">'+demoExam()+'</div>';return;}
+  if(!META.hasPdf){box.innerHTML='<div class="nopdf">Chưa gắn đề cho khối này.<br>Vui lòng báo giáo viên.</div>';return;}
+  box.innerHTML='<div class="nopdf"><div class="spin" style="margin:0 auto"></div><p>Đang tải đề…</p></div>';
+  fetch(API+'?api=pdf&grade='+encodeURIComponent(GRADE)).then(function(r){return r.json()}).then(function(d){
+    if(!d.ok)throw new Error(d.error||'Lỗi tải đề');
+    var raw=atob(d.base64),arr=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    return pdfjsLib.getDocument({data:arr}).promise;
+  }).then(function(pdf){
+    box.innerHTML='';
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    for(var n=1;n<=pdf.numPages;n++){(function(n){
+      pdf.getPage(n).then(function(page){
+        var vp=page.getViewport({scale:1}),cw=box.clientWidth-24,scale=cw/vp.width;
+        var v=page.getViewport({scale:scale*dpr});
+        var c=document.createElement('canvas');c.width=v.width;c.height=v.height;
+        c.style.maxWidth=(v.width/dpr)+'px';box.appendChild(c);
+        page.render({canvasContext:c.getContext('2d'),viewport:v});
+      });
+    })(n);}
+  }).catch(function(e){box.innerHTML='<div class="nopdf">Không tải được đề.<br>'+esc(e.message||e)+'</div>'});
+}
+
+/* ====== ẢNH ====== */
+function compress(file){return new Promise(function(res){
+  var img=new Image(),url=URL.createObjectURL(file);
+  img.onload=function(){var max=1600,w=img.width,h=img.height;
+    if(w>h&&w>max){h=Math.round(h*max/w);w=max}else if(h>=w&&h>max){w=Math.round(w*max/h);h=max}
+    var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+    URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',0.7));};
+  img.onerror=function(){URL.revokeObjectURL(url);res(null)};img.src=url;});}
+
+async function addFiles(input){
+  var files=[].slice.call(input.files||[]);input.value='';
+  for(var i=0;i<files.length;i++){if(!/^image\//.test(files[i].type))continue;
+    var d=await compress(files[i]);if(d)images.push(d);}
+  await saveCache();renderGrid();
+}
+async function removeAt(i){images.splice(i,1);await saveCache();renderGrid();}
+function renderGrid(){
+  var g=$('grid');if(!g)return;g.innerHTML='';
+  images.forEach(function(d,i){var x=document.createElement('div');x.className='thumb';
+    x.innerHTML='<img src="'+d+'"><button class="x" onclick="removeAt('+i+')">✕</button><div class="n">Ảnh '+(i+1)+'</div>';
+    g.appendChild(x);});
+  var b=$('btnSubmit');b.textContent='Nộp bài ('+images.length+' ảnh)';b.disabled=images.length===0;
+}
+
+/* ====== NỘP ====== */
+function post(payload){return fetch(API,{method:'POST',body:JSON.stringify(payload)}).then(function(r){return r.json()});}
+
+async function submitAll(){
+  var ten=val('ten'),sdt=val('sdt');
+  if(!ten){toast('Vui lòng nhập Họ tên');showTab('nop');$('ten').focus();return;}
+  if(!sdt){toast('Vui lòng nhập Số điện thoại');showTab('nop');$('sdt').focus();return;}
+  if(!images.length){toast('Chưa có ảnh bài làm');return;}
+  if(!confirm('Nộp '+images.length+' ảnh? Sau khi nộp không sửa được.'))return;
+  var ov=$('overlay'),ovt=$('ovtxt');ov.classList.add('on');$('btnSubmit').disabled=true;
+  var sessionId=Date.now()+'_'+Math.floor(Math.random()*1000),urls=[],folderUrl='';
+  try{
+    for(var i=0;i<images.length;i++){
+      ovt.textContent='Đang gửi ảnh '+(i+1)+'/'+images.length+'…';
+      var r=await post({action:'upload',grade:GRADE,sdt:sdt,ten:ten,sessionId:sessionId,image:images[i],idx:i+1});
+      if(!r||!r.ok)throw new Error(r&&r.error?r.error:'Lỗi gửi ảnh '+(i+1));
+      urls.push(r.url);folderUrl=r.folderUrl;
+    }
+    ovt.textContent='Đang hoàn tất…';
+    var f=await post({action:'finalize',grade:GRADE,sdt:sdt,ten:ten,urls:urls,folderUrl:folderUrl});
+    if(!f||!f.ok)throw new Error(f&&f.error?f.error:'Lỗi ghi kết quả');
+    await clearCache();ov.classList.remove('on');
+    notice('✅','Đã nộp bài thành công!','Cảm ơn <b>'+esc(ten)+'</b> đã gửi <b>'+urls.length+' ảnh</b>.<br>Em có thể đóng trang này.');
+  }catch(e){ov.classList.remove('on');$('btnSubmit').disabled=false;toast('⚠️ '+(e.message||e));}
+}
+
+async function restoreCache(){
+  await openDB();var c=await loadCache();if(!c)return;
+  if(c.ten&&$('ten'))$('ten').value=c.ten;
+  if(c.sdt&&$('sdt'))$('sdt').value=c.sdt;
+  images=c.images||[];renderGrid();
+  if(images.length){showTab('nop');var r=$('restore');if(r){r.classList.add('on');r.innerHTML='↩️ Đã khôi phục <b>'+images.length+' ảnh</b> em chụp lần trước (chưa nộp).';}}
+}
+
+/* ====== ĐỀ DEMO (HTML) ====== */
+function fr(n,d){return '<span class="fr"><span class="n">'+n+'</span><span class="d">'+d+'</span></span>'}
+function demoExam(){return ''+
+ '<div class="dpaper">'+
+ '<div class="dtitle">ĐÁNH GIÁ NĂNG LỰC<br>HỌC SINH KHỐI 8 LÊN 9</div>'+
+ '<div class="dsub">Thời gian làm bài: 120 phút (không kể thời gian phát đề)</div>'+
+ '<div class="dq">Bài I (2 điểm) Giải các phương trình sau:</div>'+
+ '<div>1)&nbsp; 2(2x − 1) − x = 4</div>'+
+ '<div>2)&nbsp; '+fr('x + 1','x − 2')+' + '+fr('1','x')+' = '+fr('5x − 4','x² − 2x')+'</div>'+
+ '<div class="dq">Bài II (2 điểm) Giải các bất phương trình và biểu diễn tập nghiệm trên trục số:</div>'+
+ '<div>1)&nbsp; 3(x + 2) > 2x − 1</div>'+
+ '<div>2)&nbsp; '+fr('x + 1','2')+' − '+fr('3x − 5','3')+' ≥ '+fr('x','4')+' + 3</div>'+
+ '<div class="dq">Bài III (2 điểm) Giải bài toán bằng cách lập phương trình:</div>'+
+ '<div>Một xưởng dệt theo kế hoạch mỗi ngày phải dệt 30 áo. Thực tế xưởng đã dệt được mỗi ngày 40 áo nên đã hoàn thành trước thời hạn 3 ngày, ngoài ra còn dệt thêm được 20 chiếc áo. Tính số áo xưởng phải dệt theo kế hoạch?</div>'+
+ '<div class="dq">Bài IV (3,5 điểm)</div>'+
+ '<div>1) Tìm x ; y trong hình vẽ bên (Học sinh không phải vẽ lại hình)</div>'+
+ '<div style="text-align:center;margin:8px 0"><svg viewBox="0 0 520 290" style="width:90%;max-width:330px">'+
+   '<g fill="none" stroke="#111" stroke-width="2">'+
+   '<line x1="120" y1="55" x2="330" y2="55"/><line x1="120" y1="55" x2="480" y2="250"/>'+
+   '<line x1="330" y1="55" x2="330" y2="250"/><line x1="330" y1="250" x2="480" y2="250"/>'+
+   '<polyline points="316,55 316,69 330,69" stroke-width="1.4"/><polyline points="330,236 344,236 344,250" stroke-width="1.4"/></g>'+
+   '<circle cx="330" cy="161" r="3" fill="#111"/>'+
+   '<g font-size="17" font-style="italic" fill="#111"><text x="102" y="52">A</text><text x="337" y="49">B</text>'+
+   '<text x="302" y="160">M</text><text x="310" y="272">C</text><text x="487" y="257">D</text>'+
+   '<text x="214" y="45">y</text><text x="203" y="120">x</text><text x="342" y="116">3</text>'+
+   '<text x="342" y="214">6</text><text x="400" y="272">8</text></g></svg></div>'+
+ '<div>2) Cho tam giác ABC vuông tại A (AB &lt; AC), đường cao AH (H ∈ BC).</div>'+
+ '<div>a) Chứng minh: ΔABC đồng dạng với ΔHBA.</div>'+
+ '<div>b) Lấy điểm M thuộc AH. Kẻ đường thẳng qua B vuông góc với CM tại K. Chứng minh: CM·CK = CH·CB.</div>'+
+ '<div>c) Tia BK cắt HA tại D. Chứng minh: góc BKH = góc BCD.</div>'+
+ '<div class="dq">Bài V (0,5 điểm)</div>'+
+ '<div>Giải bất phương trình 3x³ − 5x² − x − 2 > 0</div>'+
+ '<div style="text-align:center;letter-spacing:2px;color:#444;margin-top:10px">———— HẾT ————</div>'+
+ '</div>';}
+</script>
+</body>
+</html>
